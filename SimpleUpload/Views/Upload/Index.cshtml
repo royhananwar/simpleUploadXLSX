@@ -1,0 +1,139 @@
+﻿
+@{
+    ViewBag.Title = "Index";
+}
+
+<h2>Upload File</h2>
+
+<div id="part-app">
+    <p>{{ message }}</p>
+    <button v-on:click="revMessage">Reverse Message brooooo</button>
+
+    <div class="tab-content">
+        <div class="row">
+            <div class=" col-md-12">
+                <input multiple v-on:change="onFileChange" ref="inputFile" class="form-control" type="file" accept=".xls, .xlsx" />
+                <button class="btn btn-primary" v-on:click="onClickProcess">Upload</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+@section scripts {
+<script src="~/Scripts/vue.min.js"></script>
+<script src="~/Scripts/xlsx.full.min.js"></script>
+<script src="~/Scripts/paparse.min.js"></script>
+<script>
+    Vue.config.devtools = true
+    new Vue({
+        el: '#part-app',
+        data: {
+            message: 'bam',
+            files: [],
+            result: [],
+            firstGenerated: [],
+            rABS:false
+        },
+        watch: {
+            finishGenerated: function (oldValue, newValue) {
+                if (newValue.length == this.files.length)
+                    this.submitData()
+            }
+        },  
+        methods: {
+            revMessage: function () {
+                this.message = this.message.split('').reverse().join('')
+            },
+            readFile: function (f) {
+                var self = this
+                var reader = new FileReader()
+                reader.onload = function (e) {
+                    var data = e.target.result
+                    if (!this.rABS) data = new Uint8Array(data)
+                    var workbook = XLSX.read(data, { type: this.rABS ? 'binary' : 'array' })
+                    var sheet = workbook.Sheets[Object.keys(workbook.Sheets)[0]]
+                    var csv = XLSX.utils.sheet_to_csv(sheet)
+                    var json = Papa.parse(XLSX.utils.sheet_to_csv(sheet))
+                    self.convertData(f.name, json.data)
+                }
+                if (this.rABS) reader.readAsBinaryString(f); else reader.readAsArrayBuffer(f);
+            },
+
+            convertData: function (fileName, data) {
+                var self = this
+                var removeExtension = fileName.split('.xls')
+
+                var listTitle = [
+                    'Article No.',
+                    'Factory',
+                    'Cal.Size',
+                    'VA volume',
+                    'FOB $',
+                    'Labor $',
+                    'Overhead $',
+                    'Total D/A',
+                    'Vol.Adj.$',
+                    'UPPER',
+                    'SOCKLINER',
+                    'INSOLE',
+                    'BOTTOM',
+                    'SUNDRIES',
+                    'PACKAGING'
+                ]
+
+                var indexJson = []
+
+                for (var index in data) {
+                    indexJson.push(index)
+                }
+
+                indexJson.sort(function (a, b) {
+                    return a == b ? 0 : (a > b ? 1 : -1);
+                });
+
+                console.log(indexJson)
+                this.download(data, 'bams.txt', 'text/json')
+                this.download(indexJson, 'bam.txt', 'text/json')
+                console.log(data[index[1]])
+
+                //for (var i = 0; i < data.length; i++) {
+                //    for (var j = 0; j < data[i].length; j++) {
+                //        for (var k = 0; k < listTitle.length; k++) {
+                //            if (data[i]) {
+
+                //            }
+                //        }
+                //    }
+                //}
+            },
+            download: function(content, fileName, contentType) {
+                var a = document.createElement("a");
+                var file = new Blob([content], { type: contentType });
+                a.href = URL.createObjectURL(file);
+                a.download = fileName;
+                a.click();
+            },
+            reset: function () {
+                this.finishGenerated = []
+                this.result = []
+                this.files = []
+                this.$refs.inputFile.value = ""
+            },
+            onFileChange: function (e) {
+                this.files = e.target.files
+            },
+            onClickProcess: function (e) {
+                if (!this.files.length) {
+                    alert('Please choose files first')
+                    return
+                }
+
+                $("#ajax-loader").show()
+                for (var i = 0; i < this.files.length; i++) {
+                    this.readFile(this.files[i])
+                }
+            }
+        }
+    })
+</script>
+}
