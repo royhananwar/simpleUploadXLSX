@@ -6,7 +6,6 @@
 <h2>Upload File</h2>
 
 <div id="part-app">
-    <p>{{ message }}</p>
     <button v-on:click="revMessage">Reverse Message brooooo</button>
 
     <div class="tab-content">
@@ -14,6 +13,11 @@
             <div class=" col-md-12">
                 <input multiple v-on:change="onFileChange" ref="inputFile" class="form-control" type="file" accept=".xls, .xlsx" />
                 <button class="btn btn-primary" v-on:click="onClickProcess">Upload</button>
+            </div>
+            <div class="col-md-12">
+                <p id="resultJson">
+
+                </p>
             </div>
         </div>
     </div>
@@ -28,7 +32,6 @@
     new Vue({
         el: '#part-app',
         data: {
-            message: 'bam',
             files: [],
             result: [],
             firstGenerated: [],
@@ -39,7 +42,7 @@
                 if (newValue.length == this.files.length)
                     this.submitData()
             }
-        },  
+        },
         methods: {
             revMessage: function () {
                 this.message = this.message.split('').reverse().join('')
@@ -62,49 +65,107 @@
             convertData: function (fileName, data) {
                 var self = this
                 var removeExtension = fileName.split('.xls')
+                var listBase1 = []
+                var listBase2 = []
+                var listBase3 = []
 
-                var listTitle = [
-                    'Article No.',
-                    'Factory',
-                    'Cal.Size',
-                    'VA volume',
-                    'FOB $',
-                    'Labor $',
-                    'Overhead $',
-                    'Total D/A',
-                    'Vol.Adj.$',
-                    'UPPER',
-                    'SOCKLINER',
-                    'INSOLE',
-                    'BOTTOM',
-                    'SUNDRIES',
-                    'PACKAGING'
-                ]
-
-                var indexJson = []
-
-                for (var index in data) {
-                    indexJson.push(index)
+                for (var a = 0; a < data.length; a++) {
+                    if (data[a][0] == "UPPER") {
+                        break
+                    }
                 }
 
-                indexJson.sort(function (a, b) {
-                    return a == b ? 0 : (a > b ? 1 : -1);
-                });
+                var base1 = {
+                    factory: data[2][11],
+                    cal_size: data[3][11]
+                }
+                listBase1.push(base1)
+                this.result.push(listBase1)
+                var start = 9
+                var start_part = a + 1
 
-                console.log(indexJson)
-                this.download(data, 'bams.txt', 'text/json')
-                this.download(indexJson, 'bam.txt', 'text/json')
-                console.log(data[index[1]])
+                while (true) {
+                    var hq = data[start][0]
+                    if (hq.length == 0) {
+                        break
+                    }
+                    else {
+                        console.log(hq)
+                    }
+                    start++;
+                }
+                start += 4
 
-                //for (var i = 0; i < data.length; i++) {
-                //    for (var j = 0; j < data[i].length; j++) {
-                //        for (var k = 0; k < listTitle.length; k++) {
-                //            if (data[i]) {
+                while (true) {
+                    var article = data[start][0]
+                    var vavol = data[start][18]
+                    var fob = data[start][3]
+                    var labor = data[start][11]
+                    var overhead = data[start][12]
+                    var total = data[start][14]
+                    var vol_ajd = data[start][17]
 
-                //            }
-                //        }
-                //    }
-                //}
+                    if (article.length == 0) {
+                        break
+                    }
+                    else {
+                        var base2 = {
+                            article: article,
+                            vavol: vavol,
+                            fob: fob,
+                            labor: labor,
+                            overhead: overhead,
+                            total: total,
+                            vol_ajd: vol_ajd,
+                        }
+                        listBase2.push(base2)
+                    }
+                    start++;
+                }
+                this.result.push(listBase2)
+
+                while (true) {
+                    var part = data[start_part][0]
+                    var part_name = data[start_part][1]
+                    var my = data[start_part][7]
+                    var calc_size = data[start_part][9]
+                    var mat_fob = data[start_part][15]
+                    var loss = data[start_part][8]
+                    var mye1 = data[start_part][6]
+
+                    if (part.length == 0) {
+                        start_part += 2
+                        if (data[start_part][0].length == 0) {
+                            break
+                        }
+                    }
+                    else {
+                        var base3 = {
+                            part: part,
+                            part_name: part_name,
+                            my: my,
+                            calc_size: calc_size,
+                            mat_fob: mat_fob,
+                            loss: loss,
+                            mye1: mye1
+                        }
+                        listBase3.push(base3)
+                    }
+                    start_part++
+                }
+                this.result.push(listBase3)
+                console.log(this.result)
+                document.getElementById('resultJson').innerText = JSON.stringify(this.result, null)
+            },
+            submitData: function () {
+                var urlToHandler = '@Url.Action("store")'
+                var copyData = JSON.parse(JSON.stringify(this.result))
+                var self = this
+                if (copyData.length == 0) {
+                    alert("Data cannot be null")
+                    $("#ajax-loader").hide()
+                    return
+                }
             },
             download: function(content, fileName, contentType) {
                 var a = document.createElement("a");

@@ -18,5 +18,11 @@ namespace SimpleUpload.Controllers
         //{
 
         //}
+
+        //[HttpPost]
+        //public ActionResult GetDataJSON()
+        //{
+        //    return
+        //}
     }
 }
