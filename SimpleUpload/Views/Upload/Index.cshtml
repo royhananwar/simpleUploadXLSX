@@ -6,8 +6,6 @@
 <h2>Upload File</h2>
 
 <div id="part-app">
-    <button v-on:click="revMessage">Reverse Message brooooo</button>
-
     <div class="tab-content">
         <div class="row">
             <div class=" col-md-12">
@@ -27,26 +25,33 @@
 <script src="~/Scripts/vue.min.js"></script>
 <script src="~/Scripts/xlsx.full.min.js"></script>
 <script src="~/Scripts/paparse.min.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
 <script>
     Vue.config.devtools = true
+    var tmp_data = []
+    var listBase1 = []
+    var listBase2 = []
+    var listBase3 = []
     new Vue({
         el: '#part-app',
         data: {
             files: [],
             result: [],
-            firstGenerated: [],
+            finishGenerated: [],
             rABS:false
         },
         watch: {
             finishGenerated: function (oldValue, newValue) {
-                if (newValue.length == this.files.length)
+                if (newValue.length == this.files.length) {
+                    tmp_data.push(listBase1)
+                    tmp_data.push(listBase2)
+                    tmp_data.push(listBase3)
+                    document.getElementById('resultJson').innerText = JSON.stringify(tmp_data, null)
                     this.submitData()
-            }
+                }
+            }   
         },
         methods: {
-            revMessage: function () {
-                this.message = this.message.split('').reverse().join('')
-            },
             readFile: function (f) {
                 var self = this
                 var reader = new FileReader()
@@ -54,7 +59,8 @@
                     var data = e.target.result
                     if (!this.rABS) data = new Uint8Array(data)
                     var workbook = XLSX.read(data, { type: this.rABS ? 'binary' : 'array' })
-                    var sheet = workbook.Sheets[Object.keys(workbook.Sheets)[0]]
+                    var sheet_name = 'FCT_CBD'
+                    var sheet = workbook.Sheets[sheet_name]
                     var csv = XLSX.utils.sheet_to_csv(sheet)
                     var json = Papa.parse(XLSX.utils.sheet_to_csv(sheet))
                     self.convertData(f.name, json.data)
@@ -65,9 +71,7 @@
             convertData: function (fileName, data) {
                 var self = this
                 var removeExtension = fileName.split('.xls')
-                var listBase1 = []
-                var listBase2 = []
-                var listBase3 = []
+                var listAllData = []
 
                 for (var a = 0; a < data.length; a++) {
                     if (data[a][0] == "UPPER") {
@@ -80,30 +84,28 @@
                     cal_size: data[3][11]
                 }
                 listBase1.push(base1)
-                this.result.push(listBase1)
+
                 var start = 9
                 var start_part = a + 1
+                var back_start = a + 1
 
                 while (true) {
                     var hq = data[start][0]
                     if (hq.length == 0) {
                         break
                     }
-                    else {
-                        console.log(hq)
-                    }
                     start++;
                 }
                 start += 4
 
                 while (true) {
-                    var article = data[start][0]
-                    var vavol = data[start][18]
-                    var fob = data[start][3]
-                    var labor = data[start][11]
-                    var overhead = data[start][12]
-                    var total = data[start][14]
-                    var vol_ajd = data[start][17]
+                    var article = data[start][0].trim()
+                    var vavol = data[start][18].trim()
+                    var fob = data[start][3].replace('$', '').trim()
+                    var labor = data[start][11].replace('$', '').trim()
+                    var overhead = data[start][12].replace('$', '').trim()
+                    var total = data[start][14].replace('$', '').trim()
+                    var vol_ajd = data[start][17].replace('$', '').replace('(', '-').replace(')', '').trim()
 
                     if (article.length == 0) {
                         break
@@ -122,50 +124,87 @@
                     }
                     start++;
                 }
-                this.result.push(listBase2)
 
-                while (true) {
-                    var part = data[start_part][0]
-                    var part_name = data[start_part][1]
-                    var my = data[start_part][7]
-                    var calc_size = data[start_part][9]
-                    var mat_fob = data[start_part][15]
-                    var loss = data[start_part][8]
-                    var mye1 = data[start_part][6]
+                for (var i = 0; i < listBase2.length; i++) {
 
-                    if (part.length == 0) {
-                        start_part += 2
-                        if (data[start_part][0].length == 0) {
-                            break
+                    while (true) {
+                        var article = listBase2[i].article
+                        var part = data[start_part][0].trim()
+                        var part_name = data[start_part][1].trim()
+                        var my = data[start_part][7].trim()
+                        var calc_size = data[start_part][9].trim()
+                        var mat_fob = data[start_part][15].trim()
+                        var loss = data[start_part][8].trim()
+                        var mye1 = data[start_part][6].trim()
+
+                        if (part.length == 0) {
+                            start_part += 2
+                            if (data[start_part][0].length == 0) {
+                                break
+                            }
                         }
-                    }
-                    else {
-                        var base3 = {
-                            part: part,
-                            part_name: part_name,
-                            my: my,
-                            calc_size: calc_size,
-                            mat_fob: mat_fob,
-                            loss: loss,
-                            mye1: mye1
+                        else {
+                            var base3 = {
+                                article: article,
+                                part: part,
+                                part_name: part_name,
+                                my: my,
+                                calc_size: calc_size,
+                                mat_fob: mat_fob,
+                                loss: loss,
+                                mye1: mye1
+                            }
+                            listBase3.push(base3)
                         }
-                        listBase3.push(base3)
+                        start_part++
                     }
-                    start_part++
+                    start_part = back_start
                 }
-                this.result.push(listBase3)
-                console.log(this.result)
-                document.getElementById('resultJson').innerText = JSON.stringify(this.result, null)
+
+                this.finishGenerated.push(fileName)
+
             },
             submitData: function () {
-                var urlToHandler = '@Url.Action("store")'
-                var copyData = JSON.parse(JSON.stringify(this.result))
+                var urlToHandler = '@Url.Action("Store")'
+                //var copyData = JSON.parse(JSON.stringify(tmp_data))
+                var jsonListBase1 = JSON.parse(JSON.stringify(listBase1))
+                var jsonListBase2 = JSON.parse(JSON.stringify(listBase2))
+                var jsonListBase3 = JSON.parse(JSON.stringify(listBase3))
                 var self = this
-                if (copyData.length == 0) {
+                if (jsonListBase1.length == 0) {
                     alert("Data cannot be null")
                     $("#ajax-loader").hide()
                     return
                 }
+
+                $.ajax({
+                    url: urlToHandler,
+                    data: JSON.stringify({
+                        listBase1: jsonListBase1,
+                        listBase2: jsonListBase2,
+                        listBase3: jsonListBase3
+                    }),
+                    dataType: 'json',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    success: function (data) {
+                        alert(data)
+                        self.reset()
+                    },
+                    error: function (data, status, jqXHR) {
+                        alert('There was an error.');
+                    }
+                });
+
+
+                //axios.post(urlToHandler, {
+                //    copyData
+                //}).then(function (response) {
+                //    console.log(response)
+                //}).catch(function (error) {
+                //    console.log(error)
+                //})
+                
             },
             download: function(content, fileName, contentType) {
                 var a = document.createElement("a");
@@ -179,6 +218,7 @@
                 this.result = []
                 this.files = []
                 this.$refs.inputFile.value = ""
+                tmp_data = []
             },
             onFileChange: function (e) {
                 this.files = e.target.files
