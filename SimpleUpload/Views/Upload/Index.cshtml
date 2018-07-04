@@ -3,6 +3,8 @@
     ViewBag.Title = "Index";
 }
 
+
+
 <h2>Upload File</h2>
 
 <div id="part-app">
@@ -20,18 +22,21 @@
         </div>
     </div>
 
+    <div class="lds-hourglass"></div>
+
 </div>
 @section scripts {
-<script src="~/Scripts/vue.min.js"></script>
-<script src="~/Scripts/xlsx.full.min.js"></script>
-<script src="~/Scripts/paparse.min.js"></script>
-<script src="~/Scripts/axios.min.js"></script>
-<script>
+    <script src="~/Scripts/vue.min.js"></script>
+    <script src="~/Scripts/xlsx.full.min.js"></script>
+    <script src="~/Scripts/paparse.min.js"></script>
+    <script src="~/Scripts/axios.min.js"></script>
+    <script>
     Vue.config.devtools = true
     var tmp_data = []
     var listBase1 = []
     var listBase2 = []
-    var listBase3 = []
+    var listCbdDetail = []
+    var listCbdTooling = []
     new Vue({
         el: '#part-app',
         data: {
@@ -45,11 +50,11 @@
                 if (newValue.length == this.files.length) {
                     tmp_data.push(listBase1)
                     tmp_data.push(listBase2)
-                    tmp_data.push(listBase3)
-                    document.getElementById('resultJson').innerText = JSON.stringify(tmp_data, null)
+                    tmp_data.push(listCbdDetail)
+                    document.getElementById('resultJson').innerText = JSON.stringify(listCbdTooling, null)
                     this.submitData()
                 }
-            }   
+            }
         },
         methods: {
             readFile: function (f) {
@@ -67,27 +72,54 @@
                 }
                 if (this.rABS) reader.readAsBinaryString(f); else reader.readAsArrayBuffer(f);
             },
-
             convertData: function (fileName, data) {
                 var self = this
                 var removeExtension = fileName.split('.xls')
                 var listAllData = []
+                this.getCbdDetail(data, fileName)
+                this.getCbdTooling(data)
+
+            },
+            getCbdDetail: function (data, fileName) {
+                var start_part = 0
+                var upper_row = 0
+                var sockliner_row = 0
+                var insole_row = 0
+                var bottom_row = 0
+                var sundries_row = 0
+                var packaging_row = 0
 
                 for (var a = 0; a < data.length; a++) {
                     if (data[a][0] == "UPPER") {
-                        break
+                        upper_row = a
+                        start_part = a + 1
+                    }
+                    if (data[a][0] == "SOCKLINER") {
+                        sockliner_row = a
+                    }
+                    if (data[a][0] == "INSOLE") {
+                        insole_row = a
+                    }
+                    if (data[a][0] == "BOTTOM") {
+                        bottom_row = a
+                    }
+                    if (data[a][0] == "SUNDRIES") {
+                        sundries_row = a
+                    }
+                    if (data[a][0] == "PACKAGING") {
+                        packaging_row = a
                     }
                 }
 
                 var base1 = {
                     factory: data[2][11],
-                    cal_size: data[3][11]
+                    cal_size: data[3][11],
+                    season: data[2][5]
                 }
                 listBase1.push(base1)
 
                 var start = 9
-                var start_part = a + 1
-                var back_start = a + 1
+                var back_start = start_part
 
                 while (true) {
                     var hq = data[start][0]
@@ -99,26 +131,18 @@
                 start += 4
 
                 while (true) {
-                    var article = data[start][0].trim()
-                    var vavol = data[start][18].trim()
-                    var fob = data[start][3].replace('$', '').trim()
-                    var labor = data[start][11].replace('$', '').trim()
-                    var overhead = data[start][12].replace('$', '').trim()
-                    var total = data[start][14].replace('$', '').trim()
-                    var vol_ajd = data[start][17].replace('$', '').replace('(', '-').replace(')', '').trim()
-
-                    if (article.length == 0) {
+                    if (data[start][0].trim() == 0) {
                         break
                     }
                     else {
                         var base2 = {
-                            article: article,
-                            vavol: vavol,
-                            fob: fob,
-                            labor: labor,
-                            overhead: overhead,
-                            total: total,
-                            vol_ajd: vol_ajd,
+                            article: data[start][0].trim(),
+                            vavol: data[start][18].trim(),
+                            fob: data[start][3].replace('$', '').trim(),
+                            labor: data[start][11].replace('$', '').trim(),
+                            overhead: data[start][12].replace('$', '').trim(),
+                            total: data[start][14].replace('$', '').trim(),
+                            vol_ajd: data[start][17].replace('$', '').replace('(', '-').replace(')', '').trim()
                         }
                         listBase2.push(base2)
                     }
@@ -126,50 +150,149 @@
                 }
 
                 for (var i = 0; i < listBase2.length; i++) {
-
                     while (true) {
-                        var article = listBase2[i].article
-                        var part = data[start_part][0].trim()
-                        var part_name = data[start_part][1].trim()
-                        var my = data[start_part][7].trim()
-                        var calc_size = data[start_part][9].trim()
-                        var mat_fob = data[start_part][15].trim()
-                        var loss = data[start_part][8].trim()
-                        var mye1 = data[start_part][6].trim()
+                        var kind = ""
+                        if (start_part >= upper_row && start_part < sockliner_row) {
+                            kind = "01.Upper"
+                        }
+                        else if (start_part >= sockliner_row && start_part < insole_row) {
+                            kind = "02.Sockliner"
+                        }
+                        else if (start_part >= insole_row && start_part < bottom_row) {
+                            kind = "03.Insole"
+                        }
+                        else if (start_part >= bottom_row && start_part < sundries_row) {
+                            kind = "04.Bottom"
+                        }
+                        else if (start_part >= sundries_row && start_part < packaging_row) {
+                            kind = "05.Sundries"
+                        }
+                        else if (start_part >= packaging_row) {
+                            kind = "06.Packaging"
+                        }
+                        else {
+                            kind = "error"
+                        }
 
-                        if (part.length == 0) {
+                        if (data[start_part][0].trim() == 0) {
                             start_part += 2
                             if (data[start_part][0].length == 0) {
                                 break
                             }
                         }
                         else {
-                            var base3 = {
-                                article: article,
-                                part: part,
-                                part_name: part_name,
-                                my: my,
-                                calc_size: calc_size,
-                                mat_fob: mat_fob,
-                                loss: loss,
-                                mye1: mye1
+                            var cbd_new = {
+                                season: data[2][4].trim(),
+                                version: 1,
+                                art: listBase2[i].article,
+                                part: data[start_part][0].trim(),
+                                partna: data[start_part][1].trim(),
+                                addition: "adition",
+                                supp: data[start_part][4].trim(),
+                                material: data[start_part][2].trim(),
+                                mat_thickness: data[start_part][3].trim(),
+                                uom: data[start_part][5].trim(),
+                                cif: "???",
+                                mat_yield: parseFloat(data[start_part][8].trim()),
+                                mat_yield_eff: parseFloat(data[start_part][6].trim()),
+                                loss_perc: parseFloat(data[start_part][9].trim().replace('%', '')),
+                                calc_size_perc: parseFloat(data[start_part][10].trim().replace('%', '')),
+                                gross_yield: parseFloat(data[start_part][11].trim()),
+                                mat_fob_usd: parseFloat(data[start_part][13].trim()),
+                                fob_bypair_usd: parseFloat(data[start_part][14].trim()),
+                                inusr: null,
+                                indt: null,
+                                upusr: null,
+                                updt: null
                             }
-                            listBase3.push(base3)
+                            listCbdDetail.push(cbd_new)
                         }
                         start_part++
                     }
                     start_part = back_start
                 }
+                console.log(listCbdDetail)
 
                 this.finishGenerated.push(fileName)
+            },
+            getCbdTooling: function (data) {
 
+                var tool_row = 0
+                var total_tooling = 0
+
+                for (var a = 0; a < data.length; a++) {
+                    if (data[a][0] == "Tool Number") {
+                        tool_row = a + 2
+                    }
+
+                    if (data[a][0] == "Total Tooling") {
+                        total_tooling = a
+                    }
+                }
+
+                var back_tool = tool_row
+                var valid_row = tool_row
+
+                for (var i = 0; i < listBase2.length; i++) {
+                    while (true) {
+                        if (tool_row < total_tooling) {
+                            if (data[tool_row][0].length == 0) {
+                                tool_row += 2
+                            }
+                            var cbd_tooling = {
+                                season: data[tool_row][6].trim(),
+                                version: 1,
+                                art: listBase2[i].article.trim(),
+                                bottomid: null,
+                                upperid: null,
+                                max_month: null,
+                                validfrom: data[valid_row - 3][13].trim(),
+                                validto: data[valid_row - 3][15].trim(),
+                                tool_kind: null,
+                                tool_number: data[tool_row][0].trim(),
+                                tool_subnumber: data[tool_row][1].trim(),
+                                moldtype: data[tool_row][2].trim(),
+                                details: data[tool_row][3].trim(),
+                                tool_create_seas: data[tool_row][6].trim(),
+                                stat_size_group: data[tool_row][7].trim(),
+                                own_fact: data[tool_row][8].trim(),
+                                mold_shop: data[tool_row][9].trim(),
+                                pr_byday: data[tool_row][10].trim(),
+                                unit_price_usd: data[tool_row][11].replace('$', '').trim(),
+                                qty: data[tool_row][12].trim(),
+                                tot_mold_cost_usd: data[tool_row][13].replace('$', '').trim(),
+                                amort_paid: data[tool_row][14].replace('$', '').trim(),
+                                comp_mm: data[tool_row][15].trim(),
+                                comp_bv: data[tool_row][16].trim(),
+                                remain_base_vol: data[tool_row][17].trim(),
+                                comp_amortvalid_from: data[tool_row][18].trim(),
+                                comp_amortvalid_to: data[tool_row][19].trim(),
+                                da_cost_usd: data[tool_row][20].replace('$', '').trim(),
+                                pr_amortremoved_from: data[tool_row][21].trim(),
+                                comment: data[tool_row][22].trim(),
+                                inusr: null,
+                                indt: null,
+                                upusr: null,
+                                updt: null
+                            }
+                            listCbdTooling.push(cbd_tooling)
+                        }
+                        else {
+                            break
+                        }
+                        tool_row++
+                    }
+                    listCbdTooling = listCbdTooling.slice(0, -1)
+                    tool_row = back_tool
+                    console.log(listCbdTooling)
+                }
             },
             submitData: function () {
                 var urlToHandler = '@Url.Action("Store")'
                 //var copyData = JSON.parse(JSON.stringify(tmp_data))
                 var jsonListBase1 = JSON.parse(JSON.stringify(listBase1))
                 var jsonListBase2 = JSON.parse(JSON.stringify(listBase2))
-                var jsonListBase3 = JSON.parse(JSON.stringify(listBase3))
+                var jsonlistCbdDetail = JSON.parse(JSON.stringify(listCbdDetail))
                 var self = this
                 if (jsonListBase1.length == 0) {
                     alert("Data cannot be null")
@@ -182,7 +305,7 @@
                     data: JSON.stringify({
                         listBase1: jsonListBase1,
                         listBase2: jsonListBase2,
-                        listBase3: jsonListBase3
+                        listCbdDetail: jsonlistCbdDetail
                     }),
                     dataType: 'json',
                     type: 'POST',
@@ -196,15 +319,6 @@
                     }
                 });
 
-
-                //axios.post(urlToHandler, {
-                //    copyData
-                //}).then(function (response) {
-                //    console.log(response)
-                //}).catch(function (error) {
-                //    console.log(error)
-                //})
-                
             },
             download: function(content, fileName, contentType) {
                 var a = document.createElement("a");
@@ -236,5 +350,5 @@
             }
         }
     })
-</script>
+    </script>
 }
